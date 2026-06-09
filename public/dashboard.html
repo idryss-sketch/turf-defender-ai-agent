@@ -1,0 +1,1389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SCT Sales Agent — Live Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-app: #060912;
+    --bg-sidebar: #0a0f1c;
+    --bg-card: #0f172a;
+    --bg-card-hover: #131c30;
+    --border: rgba(148, 163, 184, 0.10);
+    --border-strong: rgba(148, 163, 184, 0.18);
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --brand: #3b82f6;
+    --brand-glow: #2563eb;
+    --accent: #06b6d4;
+    --success: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+  }
+  html, body {
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    background: var(--bg-app);
+    color: var(--text-primary);
+    min-height: 100vh;
+  }
+  body {
+    background-image:
+      radial-gradient(circle 1200px at 100% -10%, rgba(59,130,246,0.08), transparent 60%),
+      radial-gradient(circle 800px at 0% 100%, rgba(6,182,212,0.06), transparent 60%);
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    transition: border-color 150ms ease, transform 150ms ease;
+  }
+  .card-hover:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .15rem .55rem;
+    border-radius: 9999px;
+    font-size: .65rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+  }
+  .pill-blue   { background: rgba(59,130,246,.15);  color: #93c5fd; }
+  .pill-cyan   { background: rgba(6,182,212,.15);   color: #67e8f9; }
+  .pill-green  { background: rgba(16,185,129,.15);  color: #6ee7b7; }
+  .pill-yellow { background: rgba(245,158,11,.15);  color: #fcd34d; }
+  .pill-red    { background: rgba(239,68,68,.15);   color: #fca5a5; }
+  .pill-purple { background: rgba(168,85,247,.15);  color: #d8b4fe; }
+  .pill-gray   { background: rgba(148,163,184,.12); color: #cbd5e1; }
+  .nav-item {
+    color: var(--text-secondary);
+    transition: all 150ms ease;
+  }
+  .nav-item:hover { background: rgba(255,255,255,.03); color: var(--text-primary); }
+  .nav-item.active {
+    background: linear-gradient(90deg, rgba(59,130,246,.18), rgba(6,182,212,.05));
+    color: #fff;
+    border-left: 2px solid var(--brand);
+  }
+  .gradient-brand {
+    background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+    box-shadow: 0 0 20px rgba(59,130,246,0.35);
+  }
+  .pulse-dot {
+    width: 6px; height: 6px; border-radius: 9999px;
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+  @keyframes pulseGlow {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--success); }
+    50%      { opacity: .55; box-shadow: 0 0 14px var(--success); }
+  }
+  .kpi-up   { color: #6ee7b7; }
+  .kpi-down { color: #fca5a5; }
+  .kpi-flat { color: #cbd5e1; }
+  .activity-row { transition: background 120ms ease; }
+  .activity-row:hover { background: rgba(255,255,255,.02); }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(148,163,184,.18); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.32); }
+  .glow-blue { box-shadow: 0 0 0 1px rgba(59,130,246,.25), 0 0 24px -8px rgba(59,130,246,.4); }
+  .insight-card {
+    background:
+      linear-gradient(135deg, rgba(59,130,246,.10), rgba(6,182,212,.04)),
+      var(--bg-card);
+    border: 1px solid rgba(59,130,246,.25);
+  }
+</style>
+</head>
+<body>
+
+<div class="flex min-h-screen">
+
+  <!-- ========================= SIDEBAR ========================= -->
+  <aside class="w-60 flex-shrink-0 hidden md:flex flex-col" style="background:var(--bg-sidebar); border-right:1px solid var(--border);">
+    <!-- Logo + biz name -->
+    <div class="px-5 py-5 border-b" style="border-color:var(--border);">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl gradient-brand flex items-center justify-center text-white font-bold text-sm">SCT</div>
+        <div>
+          <div class="font-bold text-sm leading-tight" id="biz-name">Squeaky Clean Turf</div>
+          <div class="text-[11px]" style="color:var(--text-muted)">AI Sales Agent · <span id="biz-area">AZ</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 px-2 py-3 space-y-0.5 text-sm">
+      <button data-tab="dashboard" class="nav-item active w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Dashboard
+      </button>
+      <button data-tab="conversations" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        Conversations
+        <span id="nav-convo-count" class="ml-auto pill pill-green">0 live</span>
+      </button>
+      <button data-tab="bookings" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Bookings
+        <span id="nav-bookings-count" class="ml-auto pill pill-cyan">0</span>
+      </button>
+      <button data-tab="escalations" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        Escalations
+        <span id="nav-esc-count" class="ml-auto pill pill-yellow">0</span>
+      </button>
+      <button data-tab="scripts" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Scripts
+        <span class="ml-auto pill pill-purple">soon</span>
+      </button>
+      <button data-tab="pricing" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z"/></svg>
+        Packages & Pricing
+        <span class="ml-auto pill pill-purple">soon</span>
+      </button>
+      <button data-tab="learning" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        AI Learning
+        <span class="ml-auto pill pill-purple">soon</span>
+      </button>
+      <button data-tab="settings" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Settings
+      </button>
+    </nav>
+
+    <!-- User profile -->
+    <div class="p-3 border-t" style="border-color:var(--border);">
+      <div class="flex items-center gap-2 px-2 py-2">
+        <div class="w-8 h-8 rounded-full gradient-brand flex items-center justify-center text-white font-bold text-xs">DS</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-semibold truncate">Dalis Smith</div>
+          <div class="text-[11px] truncate" style="color:var(--text-muted)">Owner</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========================= MAIN ========================= -->
+  <main class="flex-1 min-w-0 overflow-x-hidden">
+
+    <!-- ===== TOP BAR ===== -->
+    <header class="px-6 py-4 flex items-center justify-between flex-wrap gap-3" style="border-bottom:1px solid var(--border);">
+      <div class="flex items-center gap-3">
+        <h1 class="font-bold text-lg" id="page-title">Dashboard</h1>
+        <span id="ai-status-pill" class="pill pill-green"><span class="pulse-dot"></span> AI Active</span>
+      </div>
+      <div class="flex items-center gap-3 text-xs">
+        <span class="flex items-center gap-1.5" style="color:var(--text-secondary);">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          GoHighLevel connected
+        </span>
+        <span class="flex items-center gap-1.5" style="color:var(--text-muted);">
+          Auto-refresh <span id="last-refresh" class="font-medium" style="color:var(--text-secondary);">…</span>
+        </span>
+      </div>
+    </header>
+
+    <!-- ===== SAFETY-MODE STRIP (only shows in safe modes) ===== -->
+    <div id="status-strip" class="px-6 pt-4 hidden">
+      <div class="card p-3 flex items-center justify-between flex-wrap gap-3">
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+          <div>
+            <span style="color:var(--text-muted);">DRY_RUN:</span>
+            <span id="dry-run-status" class="font-semibold ml-1">…</span>
+          </div>
+          <div>
+            <span style="color:var(--text-muted);">Whitelist:</span>
+            <span id="whitelist-status" class="font-semibold ml-1">…</span>
+          </div>
+          <div>
+            <span style="color:var(--text-muted);">Kill switch:</span>
+            <span id="killswitch-status" class="font-semibold ml-1">…</span>
+          </div>
+          <div>
+            <span style="color:var(--text-muted);">Active hours:</span>
+            <span id="hours-status" class="font-semibold ml-1">…</span>
+          </div>
+        </div>
+        <div id="overall-mode" class="px-3 py-1.5 text-xs font-bold rounded-lg pill pill-yellow"></div>
+      </div>
+    </div>
+
+    <!-- =============== TAB: DASHBOARD =============== -->
+    <section data-pane="dashboard" class="p-6 space-y-5">
+
+      <!-- TODAY / WEEK / MTD STRIP -->
+      <div class="grid grid-cols-3 gap-3">
+        <div class="card p-4">
+          <div class="text-[10px] uppercase tracking-wide" style="color:var(--text-muted);">Today</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <div id="tw-today-jobs" class="text-xl font-bold">0</div>
+            <div class="text-xs" style="color:var(--text-secondary);">jobs</div>
+          </div>
+          <div id="tw-today-rev" class="text-xs mt-0.5" style="color:var(--text-muted);">$0</div>
+        </div>
+        <div class="card p-4">
+          <div class="text-[10px] uppercase tracking-wide" style="color:var(--text-muted);">Past 7 days</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <div id="tw-week-jobs" class="text-xl font-bold">0</div>
+            <div class="text-xs" style="color:var(--text-secondary);">jobs</div>
+          </div>
+          <div id="tw-week-rev" class="text-xs mt-0.5" style="color:var(--text-muted);">$0</div>
+        </div>
+        <div class="card p-4">
+          <div class="text-[10px] uppercase tracking-wide" style="color:var(--text-muted);">Month to date</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <div id="tw-mtd-jobs" class="text-xl font-bold">0</div>
+            <div class="text-xs" style="color:var(--text-secondary);">jobs</div>
+          </div>
+          <div id="tw-mtd-rev" class="text-xs mt-0.5" style="color:var(--text-muted);">$0</div>
+        </div>
+      </div>
+
+      <!-- KPI ROW (4 big cards) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+
+        <!-- Jobs Booked -->
+        <div class="card card-hover p-5">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="text-xs uppercase tracking-wide" style="color:var(--text-muted);">Jobs Booked</div>
+              <div id="kpi-jobs-booked" class="text-3xl font-bold mt-1">0</div>
+              <div id="kpi-jobs-booked-trend" class="text-xs mt-1" style="color:var(--text-secondary);">—</div>
+            </div>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:rgba(59,130,246,.12);">
+              <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Avg Job Value -->
+        <div class="card card-hover p-5">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="text-xs uppercase tracking-wide" style="color:var(--text-muted);">Avg Job Value</div>
+              <div id="kpi-avg-value" class="text-3xl font-bold mt-1">$0</div>
+              <div id="kpi-avg-value-trend" class="text-xs mt-1" style="color:var(--text-secondary);">—</div>
+            </div>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:rgba(6,182,212,.12);">
+              <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Booking Rate -->
+        <div class="card card-hover p-5">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="text-xs uppercase tracking-wide" style="color:var(--text-muted);">Booking Rate</div>
+              <div id="kpi-booking-rate" class="text-3xl font-bold mt-1">0%</div>
+              <div id="kpi-booking-rate-trend" class="text-xs mt-1" style="color:var(--text-secondary);">—</div>
+            </div>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:rgba(168,85,247,.12);">
+              <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- MTD Revenue -->
+        <div class="card card-hover p-5">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="text-xs uppercase tracking-wide" style="color:var(--text-muted);">MTD Revenue</div>
+              <div id="kpi-mtd-revenue" class="text-3xl font-bold mt-1">$0</div>
+              <div id="kpi-mtd-revenue-trend" class="text-xs mt-1" style="color:var(--text-secondary);">—</div>
+            </div>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:rgba(245,158,11,.12);">
+              <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m-6 5h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- CHART + AI INSIGHT (side by side) -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        <div class="card p-5 lg:col-span-2">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="font-semibold text-sm">Booking rate over time</h2>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted);">Last 8 weeks · % of conversations that booked</p>
+            </div>
+            <div class="flex items-center gap-3 text-xs">
+              <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-400"></span> SCT</span>
+              <span class="flex items-center gap-1.5" style="color:var(--text-muted);"><span class="w-2 h-2 rounded-full bg-slate-500"></span> Industry avg</span>
+            </div>
+          </div>
+          <div style="position:relative; height:240px; width:100%;">
+            <canvas id="booking-rate-chart"></canvas>
+          </div>
+        </div>
+
+        <div class="insight-card rounded-2xl p-5">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg gradient-brand flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+            <div class="flex-1">
+              <div class="text-xs font-semibold uppercase tracking-wide text-blue-300">This week's AI insight</div>
+              <p id="ai-insight-headline" class="font-semibold text-sm mt-2 leading-snug">Loading insight…</p>
+              <p id="ai-insight-detail" class="text-xs mt-2" style="color:var(--text-secondary);">—</p>
+              <p id="ai-insight-source" class="text-[11px] mt-3" style="color:var(--text-muted);">—</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- PACKAGE MIX + RECENT ACTIVITY -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        <div class="card p-5 lg:col-span-2">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="font-semibold text-sm">Package mix this month</h2>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted);">Bookings broken down by service tier</p>
+            </div>
+          </div>
+          <div id="package-mix" class="space-y-3">
+            <div class="text-xs text-center py-6" style="color:var(--text-muted);">No bookings this month yet.</div>
+          </div>
+        </div>
+
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="font-semibold text-sm">Recent activity</h2>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted);">Latest 15 events · live</p>
+            </div>
+            <span class="pill pill-green"><span class="pulse-dot"></span> live</span>
+          </div>
+          <div id="recent-activity" class="space-y-1 max-h-96 overflow-y-auto">
+            <div class="text-xs text-center py-6" style="color:var(--text-muted);">No activity yet.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===== CONVERSION FUNNEL + ESCALATION REASONS ===== -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        <!-- FUNNEL -->
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="font-semibold text-sm">Sales funnel</h2>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted);">Where customers drop off — fix the biggest gap first</p>
+            </div>
+          </div>
+          <div id="funnel-chart" class="space-y-2">
+            <div class="text-xs text-center py-6" style="color:var(--text-muted);">No conversations yet.</div>
+          </div>
+        </div>
+
+        <!-- ESCALATION REASONS + LOST REVENUE -->
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="font-semibold text-sm">Top escalation reasons</h2>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted);">What's costing you sales</p>
+            </div>
+            <div class="text-right">
+              <div class="text-xs" style="color:var(--text-muted);">Lost revenue est.</div>
+              <div id="lost-revenue" class="text-sm font-bold text-amber-400">$0</div>
+            </div>
+          </div>
+          <div id="escalation-reasons" class="space-y-2">
+            <div class="text-xs text-center py-6" style="color:var(--text-muted);">No escalations yet.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===== CHANNEL PERFORMANCE + CITY PERFORMANCE + TIME-TO-BOOK ===== -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        <!-- CHANNEL PERFORMANCE -->
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="font-semibold text-sm">Performance by channel</h2>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted);">Where bookings come from</p>
+            </div>
+          </div>
+          <div id="by-channel" class="space-y-2.5">
+            <div class="text-xs text-center py-6" style="color:var(--text-muted);">No channel data yet.</div>
+          </div>
+        </div>
+
+        <!-- CITY PERFORMANCE -->
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="font-semibold text-sm">Performance by city</h2>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted);">Where customers convert + pay best</p>
+            </div>
+          </div>
+          <div id="by-city" class="space-y-2 max-h-72 overflow-y-auto">
+            <div class="text-xs text-center py-6" style="color:var(--text-muted);">No city data yet.</div>
+          </div>
+        </div>
+
+        <!-- TIME-TO-BOOK -->
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="font-semibold text-sm">Time-to-book</h2>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted);">Avg minutes from first message → booking</p>
+            </div>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:rgba(168,85,247,.12);">
+              <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+          </div>
+          <div id="time-to-book" class="text-3xl font-bold">—</div>
+          <div id="time-to-book-detail" class="text-xs mt-2" style="color:var(--text-secondary);">No bookings yet</div>
+          <div class="mt-3 pt-3 text-[11px]" style="border-top:1px solid var(--border); color:var(--text-muted);">
+            Faster = customer didn't have time to second-guess. Aim for under 10 min.
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===== AI COST + TOP QUESTIONS ===== -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        <!-- AI COST PER BOOKING -->
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="font-semibold text-sm">AI cost per booking</h2>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted);">Anthropic spend ÷ jobs booked</p>
+            </div>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:rgba(16,185,129,.12);">
+              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+          </div>
+          <div id="ai-cost-per-booking" class="text-3xl font-bold">$0</div>
+          <div id="ai-cost-detail" class="text-xs mt-2" style="color:var(--text-secondary);">No data yet</div>
+          <div class="mt-3 pt-3" style="border-top:1px solid var(--border);">
+            <div class="text-[11px] uppercase tracking-wide" style="color:var(--text-muted);">vs. human SDR</div>
+            <div id="ai-cost-comparison" class="text-xs mt-1" style="color:var(--text-secondary);">Industry avg: $40–80/booked job</div>
+          </div>
+        </div>
+
+        <!-- TOP QUESTIONS ASKED -->
+        <div class="card p-5 lg:col-span-2">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="font-semibold text-sm">Recent customer questions</h2>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted);">What customers are asking — gaps tell you where to extend the FAQ</p>
+            </div>
+            <span id="questions-count" class="pill pill-blue">0</span>
+          </div>
+          <div id="recent-questions" class="space-y-1.5 max-h-72 overflow-y-auto">
+            <div class="text-xs text-center py-6" style="color:var(--text-muted);">No questions yet.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- LOWER KPI ROW (operational metrics) -->
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div class="card p-4">
+          <div class="text-[10px] uppercase tracking-wide" style="color:var(--text-muted);">Conversations</div>
+          <div id="kpi-conversations" class="text-xl font-bold mt-1">0</div>
+        </div>
+        <div class="card p-4">
+          <div class="text-[10px] uppercase tracking-wide" style="color:var(--text-muted);">Names captured</div>
+          <div id="kpi-named" class="text-xl font-bold mt-1">0</div>
+        </div>
+        <div class="card p-4">
+          <div class="text-[10px] uppercase tracking-wide" style="color:var(--text-muted);">Sq Ft detected</div>
+          <div id="kpi-sqft" class="text-xl font-bold mt-1">0</div>
+        </div>
+        <div class="card p-4">
+          <div class="text-[10px] uppercase tracking-wide" style="color:var(--text-muted);">Bookings queue</div>
+          <div id="kpi-bookings" class="text-xl font-bold mt-1 text-emerald-400">0</div>
+        </div>
+        <div class="card p-4">
+          <div class="text-[10px] uppercase tracking-wide" style="color:var(--text-muted);">Escalations</div>
+          <div id="kpi-escalations" class="text-xl font-bold mt-1 text-amber-400">0</div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- =============== TAB: BOOKINGS =============== -->
+    <section data-pane="bookings" class="p-6 space-y-5 hidden">
+      <div class="card">
+        <div class="p-4 flex items-center justify-between" style="border-bottom:1px solid var(--border);">
+          <div>
+            <h2 class="font-semibold text-sm">📋 Bookings — create these in Jobber</h2>
+            <p class="text-xs mt-0.5" style="color:var(--text-muted);">Customers who picked a service. Copy details into a new Jobber Request.</p>
+          </div>
+          <span id="bookings-count" class="pill pill-cyan">0</span>
+        </div>
+        <div id="bookings-list" class="divide-y" style="border-color:var(--border);">
+          <div class="p-6 text-center text-sm" style="color:var(--text-muted);">No bookings yet.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =============== TAB: ESCALATIONS =============== -->
+    <section data-pane="escalations" class="p-6 space-y-5 hidden">
+      <div class="card">
+        <div class="p-4 flex items-center justify-between" style="border-bottom:1px solid var(--border);">
+          <div>
+            <h2 class="font-semibold text-sm">🚨 Escalations — needs your attention</h2>
+            <p class="text-xs mt-0.5" style="color:var(--text-muted);">Conversations the AI handed off to you. Open in GHL to take over.</p>
+          </div>
+          <span id="escalation-count" class="pill pill-yellow">0</span>
+        </div>
+        <div id="escalations-list" class="divide-y" style="border-color:var(--border);">
+          <div class="p-6 text-center text-sm" style="color:var(--text-muted);">No escalations yet.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =============== TAB: CONVERSATIONS =============== -->
+    <section data-pane="conversations" class="p-6 space-y-5 hidden">
+      <div class="card">
+        <div class="p-4 flex items-center justify-between" style="border-bottom:1px solid var(--border);">
+          <div>
+            <h2 class="font-semibold text-sm">Recent conversations</h2>
+            <p class="text-xs mt-0.5" style="color:var(--text-muted);">All conversations the AI has touched, newest first.</p>
+          </div>
+          <span id="convo-count" class="pill pill-gray">0</span>
+        </div>
+        <div id="conversations-list" class="divide-y" style="border-color:var(--border);">
+          <div class="p-6 text-center text-sm" style="color:var(--text-muted);">No conversations yet.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =============== TABS: COMING SOON =============== -->
+    <section data-pane="scripts" class="p-6 hidden">
+      <div class="card p-12 text-center">
+        <div class="text-xs uppercase tracking-wide pill pill-purple inline-block">Coming soon</div>
+        <h2 class="text-lg font-semibold mt-3">Scripts (A/B testing + version history)</h2>
+        <p class="text-sm mt-2 max-w-md mx-auto" style="color:var(--text-secondary);">Edit and version your sales script from here. Run two variants side-by-side and see which converts better.</p>
+      </div>
+    </section>
+
+    <section data-pane="pricing" class="p-6 hidden">
+      <div class="card p-12 text-center">
+        <div class="text-xs uppercase tracking-wide pill pill-purple inline-block">Coming soon</div>
+        <h2 class="text-lg font-semibold mt-3">Packages & Pricing</h2>
+        <p class="text-sm mt-2 max-w-md mx-auto" style="color:var(--text-secondary);">Update package rates, minimums, and discounts without redeploying. Changes go live in seconds.</p>
+      </div>
+    </section>
+
+    <section data-pane="learning" class="p-6 space-y-5 hidden">
+      <div class="card p-5">
+        <div class="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h2 class="font-semibold text-sm">AI Learning loop</h2>
+            <p class="text-xs mt-0.5" style="color:var(--text-muted);">Periodic review of recent escalations + customer questions. AI suggests script/FAQ improvements; you approve or reject.</p>
+          </div>
+          <button id="run-analysis-btn" class="px-3 py-1.5 text-xs font-semibold rounded-lg gradient-brand text-white">
+            Run analysis now
+          </button>
+        </div>
+        <div id="analysis-status" class="text-xs mt-3 hidden" style="color:var(--text-secondary);"></div>
+      </div>
+
+      <div class="card">
+        <div class="p-4 flex items-center justify-between" style="border-bottom:1px solid var(--border);">
+          <div>
+            <h2 class="font-semibold text-sm">Pending suggestions</h2>
+            <p class="text-xs mt-0.5" style="color:var(--text-muted);">Approve to consider applying to the script. Rejected ones are kept for audit.</p>
+          </div>
+          <span id="suggestions-count" class="pill pill-purple">0</span>
+        </div>
+        <div id="suggestions-list" class="divide-y" style="border-color:var(--border);">
+          <div class="p-6 text-center text-sm" style="color:var(--text-muted);">No suggestions yet. Click "Run analysis now" to generate the first batch.</div>
+        </div>
+      </div>
+    </section>
+
+    <section data-pane="settings" class="p-6 hidden">
+      <div class="card p-12 text-center">
+        <div class="text-xs uppercase tracking-wide pill pill-purple inline-block">Coming soon</div>
+        <h2 class="text-lg font-semibold mt-3">Settings</h2>
+        <p class="text-sm mt-2 max-w-md mx-auto" style="color:var(--text-secondary);">Toggle DRY_RUN, manage whitelist, configure notification recipients — all from here. (For now, set in Railway → Variables.)</p>
+      </div>
+    </section>
+
+    <footer class="text-center text-xs py-6" style="color:var(--text-muted);">
+      SCT Sales Agent · Live data refreshes every 5 seconds
+    </footer>
+
+  </main>
+</div>
+
+<script>
+  // ====== GLOBALS ======
+  const REFRESH_MS = 5000;
+  let bookingChart = null;
+  const PAGE_TITLE = {
+    dashboard: 'Dashboard',
+    conversations: 'Conversations',
+    bookings: 'Bookings',
+    escalations: 'Escalations',
+    scripts: 'Scripts',
+    pricing: 'Packages & Pricing',
+    learning: 'AI Learning',
+    settings: 'Settings',
+  };
+
+  // ====== TAB SWITCHING ======
+  document.querySelectorAll('[data-tab]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('[data-tab]').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('[data-pane]').forEach((p) => {
+        p.classList.toggle('hidden', p.dataset.pane !== tab);
+      });
+      const titleEl = document.getElementById('page-title');
+      if (titleEl) titleEl.textContent = PAGE_TITLE[tab] || tab;
+    });
+  });
+
+  // ====== HELPERS ======
+  const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString();
+  const fmtPct = (n) => (Number(n) || 0).toFixed(1) + '%';
+  const fmtTime = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'just now';
+    if (diffMin < 60) return diffMin + 'm ago';
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return diffHr + 'h ago';
+    const diffDay = Math.floor(diffHr / 24);
+    if (diffDay < 7) return diffDay + 'd ago';
+    return d.toLocaleDateString();
+  };
+  const escapeHtml = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+  }[c]));
+  const trendArrow = (n) => {
+    if (n === null || n === undefined) return '<span class="kpi-flat">—</span>';
+    if (n > 0) return `<span class="kpi-up">▲ ${n}% vs last month</span>`;
+    if (n < 0) return `<span class="kpi-down">▼ ${Math.abs(n)}% vs last month</span>`;
+    return '<span class="kpi-flat">flat vs last month</span>';
+  };
+
+  // ====== STATE BANNER ======
+  async function refreshState() {
+    try {
+      const data = await fetch('/api/state').then((r) => r.json());
+      document.getElementById('biz-name').textContent = data.businessName;
+      document.getElementById('biz-area').textContent = (data.businessArea || '').replace('Phoenix, AZ', 'AZ');
+
+      const dry = data.dryRun;
+      const allowAll = data.allowAllContacts;
+      const wl = data.whitelist || [];
+      const kill = data.killSwitch;
+
+      // Show status strip if NOT fully live (dry run / whitelist / killed)
+      const fullyLive = !dry && allowAll && !kill;
+      const strip = document.getElementById('status-strip');
+      strip.classList.toggle('hidden', fullyLive);
+
+      const dryEl = document.getElementById('dry-run-status');
+      dryEl.textContent = dry ? 'ON ✅' : 'OFF ⚠️';
+      dryEl.className = 'font-semibold ml-1 ' + (dry ? 'text-emerald-400' : 'text-amber-400');
+
+      const wlEl = document.getElementById('whitelist-status');
+      if (allowAll) { wlEl.textContent = 'ALL contacts allowed'; wlEl.className = 'font-semibold ml-1 text-amber-400'; }
+      else if (wl.length === 0) { wlEl.textContent = 'empty (no one allowed)'; wlEl.className = 'font-semibold ml-1 text-emerald-400'; }
+      else { wlEl.textContent = wl.length + ' contact(s)'; wlEl.className = 'font-semibold ml-1 text-cyan-400'; }
+
+      const ksEl = document.getElementById('killswitch-status');
+      ksEl.textContent = kill ? 'ON 🛑' : 'off';
+      ksEl.className = 'font-semibold ml-1 ' + (kill ? 'text-red-400' : 'text-slate-300');
+
+      document.getElementById('hours-status').textContent = data.activeHours;
+
+      // Banner mode label + AI status pill
+      const modeEl = document.getElementById('overall-mode');
+      const aiPill = document.getElementById('ai-status-pill');
+      if (kill) {
+        modeEl.textContent = '🛑 KILL SWITCH ACTIVE';
+        modeEl.className = 'pill pill-red';
+        aiPill.innerHTML = '<span class="pulse-dot" style="background:#ef4444; box-shadow:0 0 8px #ef4444;"></span> AI Stopped';
+        aiPill.className = 'pill pill-red';
+      } else if (dry) {
+        modeEl.textContent = '🧪 SAFE MODE — no real messages sent';
+        modeEl.className = 'pill pill-yellow';
+        aiPill.innerHTML = '<span class="pulse-dot"></span> Dry-run';
+        aiPill.className = 'pill pill-yellow';
+      } else if (!allowAll && wl.length > 0) {
+        modeEl.textContent = '🔒 Whitelist mode — only ' + wl.length + ' contact(s)';
+        modeEl.className = 'pill pill-blue';
+        aiPill.innerHTML = '<span class="pulse-dot"></span> Whitelist Live';
+        aiPill.className = 'pill pill-blue';
+      } else if (!allowAll && wl.length === 0) {
+        modeEl.textContent = '🚫 Nothing allowed — set ALLOW_ALL_CONTACTS or ALLOWED_CONTACTS';
+        modeEl.className = 'pill pill-red';
+        aiPill.innerHTML = '<span class="pulse-dot" style="background:#ef4444; box-shadow:0 0 8px #ef4444;"></span> Idle';
+        aiPill.className = 'pill pill-red';
+      } else {
+        modeEl.textContent = '⚡ LIVE — responding to all customers';
+        modeEl.className = 'pill pill-green';
+        aiPill.innerHTML = '<span class="pulse-dot"></span> AI Active';
+        aiPill.className = 'pill pill-green';
+      }
+    } catch (e) {}
+  }
+
+  // ====== STATS ======
+  async function refreshStats() {
+    try {
+      const s = await fetch('/api/stats').then((r) => r.json());
+
+      // KPI row
+      document.getElementById('kpi-jobs-booked').textContent = s.jobsBooked.value;
+      document.getElementById('kpi-jobs-booked-trend').innerHTML = trendArrow(s.jobsBooked.vsLastMonth) + ' · ' + s.jobsBooked.total + ' all-time';
+
+      document.getElementById('kpi-avg-value').textContent = fmtMoney(s.avgJobValue.value);
+      const target = s.avgJobValue.target || 300;
+      const aboveTarget = s.avgJobValue.value >= target;
+      document.getElementById('kpi-avg-value-trend').innerHTML = aboveTarget
+        ? `<span class="kpi-up">Above $${target} target ✓</span>`
+        : `<span class="kpi-flat">Target: $${target}</span>`;
+
+      document.getElementById('kpi-booking-rate').textContent = fmtPct(s.bookingRate.value);
+      document.getElementById('kpi-booking-rate-trend').innerHTML =
+        `<span class="kpi-flat">${s.bookingRate.thisMonthBookings}/${s.bookingRate.thisMonthConvos} quote inquiries</span>`;
+
+      document.getElementById('kpi-mtd-revenue').textContent = fmtMoney(s.mtdRevenue.value);
+      document.getElementById('kpi-mtd-revenue-trend').innerHTML =
+        `<span class="kpi-flat">${s.mtdRevenue.breakdown}</span>`;
+
+      // Lower KPI row
+      document.getElementById('kpi-conversations').textContent = s.conversationsTouched;
+      document.getElementById('kpi-named').textContent = s.customerNamesCaptured;
+      document.getElementById('kpi-sqft').textContent = s.sqftDetected;
+      document.getElementById('kpi-bookings').textContent = s.bookingsToCreate;
+      document.getElementById('kpi-escalations').textContent = s.escalations;
+
+      // Sidebar nav counts
+      document.getElementById('nav-bookings-count').textContent = s.bookingsToCreate;
+      document.getElementById('nav-esc-count').textContent = s.escalations;
+
+      // AI insight
+      document.getElementById('ai-insight-headline').textContent = s.aiInsight.headline;
+      document.getElementById('ai-insight-detail').textContent = s.aiInsight.detail;
+      document.getElementById('ai-insight-source').textContent = s.aiInsight.basedOn;
+
+      // Booking rate chart
+      renderChart(s.bookingRateChart);
+
+      // Package mix
+      renderPackageMix(s.packageMix);
+
+      // Recent activity
+      renderRecentActivity(s.recentActivity);
+
+      // NEW WIDGETS:
+      renderFunnel(s.funnel);
+      renderEscalationReasons(s.escalationReasons, s.lostRevenue);
+      renderAiCost(s.aiCost);
+      renderQuestions(s.recentQuestions);
+      renderTimeWindows(s.timeWindows);
+      renderByChannel(s.byChannel);
+      renderByCity(s.byCity);
+      renderTimeToBook(s.avgTimeToBook);
+
+      document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
+    } catch (e) {
+      console.error('stats refresh failed', e);
+    }
+  }
+
+  let lastChartSig = null;
+  function renderChart(weeks) {
+    const ctx = document.getElementById('booking-rate-chart');
+    if (!ctx) return;
+    const labels = weeks.map((w) => w.label);
+    const sct = weeks.map((w) => w.rate);
+    const industry = weeks.map(() => 14);
+
+    // Only re-render if data actually changed — prevents the chart from
+    // re-running animations on every 5s refresh.
+    const sig = labels.join('|') + '::' + sct.join(',') + '::' + industry.join(',');
+    if (bookingChart && sig === lastChartSig) return;
+    lastChartSig = sig;
+
+    if (bookingChart) {
+      bookingChart.data.labels = labels;
+      bookingChart.data.datasets[0].data = sct;
+      bookingChart.data.datasets[1].data = industry;
+      bookingChart.update('none'); // 'none' = no animation
+      return;
+    }
+    bookingChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'SCT',
+            data: sct,
+            borderColor: '#3b82f6',
+            backgroundColor: (c) => {
+              const g = c.chart.ctx.createLinearGradient(0, 0, 0, 240);
+              g.addColorStop(0, 'rgba(59,130,246,0.35)');
+              g.addColorStop(1, 'rgba(59,130,246,0)');
+              return g;
+            },
+            tension: .35,
+            fill: true,
+            pointBackgroundColor: '#3b82f6',
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            borderWidth: 2,
+          },
+          {
+            label: 'Industry avg',
+            data: industry,
+            borderColor: 'rgba(148,163,184,0.45)',
+            borderDash: [4, 4],
+            tension: 0,
+            fill: false,
+            pointRadius: 0,
+            borderWidth: 1.5,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,         // disable initial animation too
+        resizeDelay: 200,         // throttle resize to avoid runaway loops
+        plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+          y: { grid: { color: 'rgba(148,163,184,0.08)' }, ticks: { color: '#64748b', font: { size: 11 }, callback: (v) => v + '%' } },
+        },
+        interaction: { intersect: false, mode: 'index' },
+      },
+    });
+  }
+
+  function renderPackageMix(mix) {
+    const root = document.getElementById('package-mix');
+    if (!mix || mix.length === 0) {
+      root.innerHTML = '<div class="text-xs text-center py-6" style="color:var(--text-muted);">No bookings this month yet.</div>';
+      return;
+    }
+    const total = mix.reduce((s, m) => s + m.count, 0);
+    const colors = { winnie: 'bg-cyan-400', khloe: 'bg-blue-400', karl: 'bg-purple-400' };
+    root.innerHTML = mix
+      .sort((a, b) => b.count - a.count)
+      .map((p) => {
+        const pct = total ? Math.round((p.count / total) * 100) : 0;
+        const color = colors[p.id] || 'bg-slate-400';
+        return `
+          <div>
+            <div class="flex items-center justify-between text-xs mb-1.5">
+              <span class="font-medium">${escapeHtml(p.name)}</span>
+              <span style="color:var(--text-secondary);">${p.count} job${p.count === 1 ? '' : 's'} · ${fmtMoney(p.revenue)}</span>
+            </div>
+            <div class="h-2 rounded-full overflow-hidden" style="background:rgba(148,163,184,0.08);">
+              <div class="h-full ${color}" style="width:${pct}%; transition:width 600ms ease;"></div>
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+  }
+
+  function renderRecentActivity(activity) {
+    const root = document.getElementById('recent-activity');
+    if (!activity || activity.length === 0) {
+      root.innerHTML = '<div class="text-xs text-center py-6" style="color:var(--text-muted);">No activity yet.</div>';
+      return;
+    }
+    root.innerHTML = activity
+      .map((a) => {
+        const icon = a.kind === 'booking'
+          ? '<div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(16,185,129,.15);"><svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>'
+          : a.kind === 'escalation'
+          ? '<div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(245,158,11,.15);"><svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>'
+          : '<div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(148,163,184,.10);"><svg class="w-3.5 h-3.5" style="color:var(--text-muted);" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg></div>';
+        const priceTag = a.price ? `<span class="text-emerald-400 font-medium ml-1">${fmtMoney(a.price)}</span>` : '';
+        return `
+          <div class="activity-row flex items-start gap-2.5 px-2 py-2 rounded-lg">
+            ${icon}
+            <div class="flex-1 min-w-0">
+              <div class="text-xs leading-snug">${escapeHtml(a.text)}${priceTag}</div>
+              <div class="text-[11px] mt-0.5" style="color:var(--text-muted);">${fmtTime(a.timestamp)}</div>
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+  }
+
+  // ====== FUNNEL ======
+  function renderFunnel(f) {
+    const root = document.getElementById('funnel-chart');
+    if (!f || f.started === 0) {
+      root.innerHTML = '<div class="text-xs text-center py-6" style="color:var(--text-muted);">No conversations yet.</div>';
+      return;
+    }
+    const steps = [
+      { label: 'Conversations started',   count: f.started,    color: 'bg-blue-500' },
+      { label: 'Engaged (got name)',      count: f.engaged,    color: 'bg-blue-500/80' },
+      { label: 'Qualified (got sq ft)',   count: f.qualified,  color: 'bg-cyan-500' },
+      { label: 'Booked',                  count: f.booked,     color: 'bg-emerald-500' },
+    ];
+    const max = f.started || 1;
+    root.innerHTML = steps.map((s, i) => {
+      const pct = Math.round((s.count / max) * 100);
+      const dropFromPrev = i > 0
+        ? steps[i - 1].count - s.count
+        : 0;
+      const dropPct = i > 0 && steps[i - 1].count
+        ? Math.round((dropFromPrev / steps[i - 1].count) * 100)
+        : 0;
+      return `
+        <div>
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-medium">${s.label}</span>
+            <span style="color:var(--text-secondary);">
+              <span class="font-semibold text-white">${s.count}</span>
+              <span class="ml-1.5" style="color:var(--text-muted);">${pct}%</span>
+              ${i > 0 && dropFromPrev > 0
+                ? `<span class="ml-2 kpi-down">−${dropFromPrev} (${dropPct}% drop)</span>`
+                : i > 0 ? '<span class="ml-2 kpi-up">no drop</span>' : ''}
+            </span>
+          </div>
+          <div class="h-2.5 rounded-full overflow-hidden" style="background:rgba(148,163,184,0.08);">
+            <div class="h-full ${s.color}" style="width:${pct}%; transition:width 600ms ease;"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    if (f.escalated > 0) {
+      root.innerHTML += `
+        <div class="mt-3 pt-3" style="border-top:1px solid var(--border);">
+          <div class="text-xs flex items-center justify-between">
+            <span style="color:var(--text-muted);">Lost to escalation:</span>
+            <span class="text-amber-400 font-medium">${f.escalated} conversation${f.escalated === 1 ? '' : 's'}</span>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // ====== ESCALATION REASONS ======
+  function renderEscalationReasons(reasons, lostRev) {
+    document.getElementById('lost-revenue').textContent = fmtMoney(lostRev || 0);
+    const root = document.getElementById('escalation-reasons');
+    if (!reasons || reasons.length === 0) {
+      root.innerHTML = '<div class="text-xs text-center py-6" style="color:var(--text-muted);">No escalations yet.</div>';
+      return;
+    }
+    const max = Math.max(...reasons.map((r) => r.count));
+    root.innerHTML = reasons.map((r) => {
+      const pct = Math.round((r.count / max) * 100);
+      return `
+        <div>
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="truncate flex-1 mr-3" title="${escapeHtml(r.reason)}">${escapeHtml(r.reason)}</span>
+            <span class="font-semibold">${r.count}</span>
+          </div>
+          <div class="h-1.5 rounded-full overflow-hidden" style="background:rgba(148,163,184,0.08);">
+            <div class="h-full bg-amber-400/70" style="width:${pct}%; transition:width 600ms ease;"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ====== AI COST PER BOOKING ======
+  function renderAiCost(c) {
+    if (!c) return;
+    document.getElementById('ai-cost-per-booking').textContent =
+      c.bookingsTracked > 0 ? '$' + c.perBooking.toFixed(2) : '—';
+    document.getElementById('ai-cost-detail').innerHTML = c.bookingsTracked > 0
+      ? `Total spend: <span class="font-medium text-white">${fmtMoney(c.totalSpend.toFixed(2))}</span> · ${c.bookingsTracked} booking${c.bookingsTracked === 1 ? '' : 's'} · ${(c.totalTokens / 1000).toFixed(1)}K tokens`
+      : `${(c.totalTokens / 1000).toFixed(1)}K tokens used so far · waiting on first booking to compute per-booking cost`;
+    if (c.bookingsTracked > 0) {
+      const human = 60; // midpoint of $40-80
+      const savings = ((human - c.perBooking) / human * 100).toFixed(0);
+      const cmpEl = document.getElementById('ai-cost-comparison');
+      cmpEl.innerHTML = c.perBooking < human
+        ? `<span class="kpi-up">${savings}% cheaper than $${human}/booking human SDR ✓</span>`
+        : `<span class="kpi-down">More expensive than $${human}/booking human SDR</span>`;
+    }
+  }
+
+  // ====== TOP QUESTIONS ======
+  function renderQuestions(qs) {
+    const root = document.getElementById('recent-questions');
+    document.getElementById('questions-count').textContent = (qs && qs.length) || 0;
+    if (!qs || qs.length === 0) {
+      root.innerHTML = '<div class="text-xs text-center py-6" style="color:var(--text-muted);">No questions yet.</div>';
+      return;
+    }
+    root.innerHTML = qs.map((q) => `
+      <div class="px-2 py-2 rounded-lg activity-row">
+        <div class="text-xs">${escapeHtml(q.text)}</div>
+        <div class="text-[11px] mt-0.5 flex items-center gap-2" style="color:var(--text-muted);">
+          <span>${escapeHtml(q.customerName)}</span>
+          <span>·</span>
+          <span>${fmtTime(q.ts)}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ====== TIME WINDOWS ======
+  function renderTimeWindows(tw) {
+    if (!tw) return;
+    document.getElementById('tw-today-jobs').textContent = tw.today.count;
+    document.getElementById('tw-today-rev').textContent = fmtMoney(tw.today.revenue);
+    document.getElementById('tw-week-jobs').textContent = tw.week.count;
+    document.getElementById('tw-week-rev').textContent = fmtMoney(tw.week.revenue);
+    document.getElementById('tw-mtd-jobs').textContent = tw.mtd.count;
+    document.getElementById('tw-mtd-rev').textContent = fmtMoney(tw.mtd.revenue);
+  }
+
+  // ====== CHANNEL PERFORMANCE ======
+  function renderByChannel(channels) {
+    const root = document.getElementById('by-channel');
+    if (!channels || channels.length === 0) {
+      root.innerHTML = '<div class="text-xs text-center py-6" style="color:var(--text-muted);">No channel data yet.</div>';
+      return;
+    }
+    const channelLabels = { SMS: 'SMS', IG: 'Instagram', FB: 'Facebook', Email: 'Email', WhatsApp: 'WhatsApp', Custom: 'Web chat' };
+    const channelColors = { SMS: 'bg-blue-400', IG: 'bg-pink-400', FB: 'bg-indigo-400', Email: 'bg-emerald-400', WhatsApp: 'bg-green-400', Custom: 'bg-cyan-400' };
+    const max = Math.max(...channels.map((c) => c.bookings || 1));
+    root.innerHTML = channels.map((c) => {
+      const label = channelLabels[c.channel] || c.channel;
+      const color = channelColors[c.channel] || 'bg-slate-400';
+      const pct = max ? Math.round((c.bookings / max) * 100) : 0;
+      return `
+        <div>
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-medium">${escapeHtml(label)}</span>
+            <span style="color:var(--text-secondary);">
+              <span class="font-semibold text-white">${c.bookings}</span> booking${c.bookings === 1 ? '' : 's'}
+              <span class="ml-1.5" style="color:var(--text-muted);">${c.rate}% rate · ${fmtMoney(c.revenue)}</span>
+            </span>
+          </div>
+          <div class="h-2 rounded-full overflow-hidden" style="background:rgba(148,163,184,0.08);">
+            <div class="h-full ${color}" style="width:${pct}%; transition:width 600ms ease;"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ====== CITY PERFORMANCE ======
+  function renderByCity(cities) {
+    const root = document.getElementById('by-city');
+    if (!cities || cities.length === 0) {
+      root.innerHTML = '<div class="text-xs text-center py-6" style="color:var(--text-muted);">No city data yet.</div>';
+      return;
+    }
+    const max = Math.max(...cities.map((c) => c.revenue));
+    root.innerHTML = cities.slice(0, 8).map((c) => {
+      const pct = max ? Math.round((c.revenue / max) * 100) : 0;
+      return `
+        <div>
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-medium">${escapeHtml(c.city)}</span>
+            <span style="color:var(--text-secondary);">
+              <span class="font-semibold text-white">${c.count}</span>
+              <span class="ml-1.5" style="color:var(--text-muted);">${fmtMoney(c.revenue)} · avg ${fmtMoney(c.avgValue)}</span>
+            </span>
+          </div>
+          <div class="h-1.5 rounded-full overflow-hidden" style="background:rgba(148,163,184,0.08);">
+            <div class="h-full bg-cyan-400" style="width:${pct}%; transition:width 600ms ease;"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ====== TIME-TO-BOOK ======
+  function renderTimeToBook(mins) {
+    const valEl = document.getElementById('time-to-book');
+    const detailEl = document.getElementById('time-to-book-detail');
+    if (mins === null || mins === undefined) {
+      valEl.textContent = '—';
+      detailEl.textContent = 'Waiting on first complete booking';
+      return;
+    }
+    if (mins < 60) {
+      valEl.innerHTML = `${mins.toFixed(1)}<span class="text-base font-medium" style="color:var(--text-secondary);"> min</span>`;
+    } else {
+      const hrs = (mins / 60).toFixed(1);
+      valEl.innerHTML = `${hrs}<span class="text-base font-medium" style="color:var(--text-secondary);"> hr</span>`;
+    }
+    if (mins < 10) {
+      detailEl.innerHTML = '<span class="kpi-up">Excellent — customers are converting fast.</span>';
+    } else if (mins < 30) {
+      detailEl.innerHTML = '<span class="kpi-flat">Healthy. Most quote-to-book conversions land here.</span>';
+    } else {
+      detailEl.innerHTML = '<span class="kpi-down">Slower than ideal. Customers may be losing interest mid-flow.</span>';
+    }
+  }
+
+  // ====== CONVERSATIONS / BOOKINGS / ESCALATIONS LISTS ======
+  async function refreshConversations() {
+    try {
+      const data = await fetch('/api/conversations').then((r) => r.json());
+      const list = data.conversations || [];
+      document.getElementById('convo-count').textContent = list.length;
+
+      // Live count = conversations updated in last 30 min
+      const live = list.filter((c) => {
+        if (!c.lastUpdated) return false;
+        return new Date() - new Date(c.lastUpdated) < 30 * 60 * 1000;
+      }).length;
+      document.getElementById('nav-convo-count').textContent = `${live} live`;
+
+      const root = document.getElementById('conversations-list');
+      if (list.length === 0) {
+        root.innerHTML = '<div class="p-6 text-center text-sm" style="color:var(--text-muted);">No conversations yet.</div>';
+        return;
+      }
+      root.innerHTML = list.slice(0, 50).map((c) => `
+        <div class="p-4 hover:bg-slate-800/30 transition">
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <div class="min-w-0 flex-1">
+              <div class="font-medium text-sm">${escapeHtml(c.customerName || c.contact?.fullName || 'Unknown')}</div>
+              <div class="text-xs mt-0.5" style="color:var(--text-muted);">
+                ${c.sqft ? c.sqft + ' sq ft · ' : ''}${c.bookingPackage ? 'Picked: ' + c.bookingPackage + ' · ' : ''}${fmtTime(c.lastUpdated)}
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+              ${c.handedOff ? '<span class="pill pill-cyan">handed off</span>' : ''}
+              ${c.escalated ? '<span class="pill pill-yellow">escalated</span>' : ''}
+              ${c.booked ? '<span class="pill pill-green">booked</span>' : ''}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    } catch (e) {}
+  }
+
+  async function refreshNotifications() {
+    try {
+      const data = await fetch('/api/notifications').then((r) => r.json());
+      const all = data.notifications || [];
+
+      // Bookings — dedupe by conversationId (a single conversation can fire
+      // both booking_notify and handoff events; show only the latest/most
+      // complete one).
+      const bookingNotifs = all.filter((n) => n.type === 'handoff' || (n.type && n.type.startsWith('booking_')));
+      const seenConvos = new Set();
+      const bookings = [];
+      for (const n of bookingNotifs) {
+        if (n.conversationId && seenConvos.has(n.conversationId)) continue;
+        if (n.conversationId) seenConvos.add(n.conversationId);
+        bookings.push(n);
+      }
+      document.getElementById('bookings-count').textContent = bookings.length;
+      const bRoot = document.getElementById('bookings-list');
+      if (bookings.length === 0) {
+        bRoot.innerHTML = '<div class="p-6 text-center text-sm" style="color:var(--text-muted);">No bookings yet.</div>';
+      } else {
+        bRoot.innerHTML = bookings.slice(0, 30).map((b) => `
+          <div class="p-4">
+            <div class="flex items-start justify-between gap-3 flex-wrap">
+              <div class="min-w-0 flex-1">
+                <div class="font-medium text-sm">${escapeHtml(b.customerName || 'Customer')}${b.phone ? ' · <span class="text-xs" style="color:var(--text-muted);">' + escapeHtml(b.phone) + '</span>' : ''}</div>
+                <div class="text-xs mt-0.5" style="color:var(--text-secondary);">
+                  ${escapeHtml(b.customerLabel || b.packageId || '?')} · ${b.sqft || '?'} sq ft · <span class="text-emerald-400 font-medium">${fmtMoney(b.price)}</span>
+                </div>
+                ${b.preferredDayTime ? `<div class="text-xs mt-1" style="color:var(--text-secondary);">Wants: ${escapeHtml(b.preferredDayTime)}</div>` : ''}
+                ${b.address ? `<div class="text-xs mt-0.5" style="color:var(--text-secondary);">📍 ${escapeHtml(b.address)}</div>` : ''}
+              </div>
+              <div class="flex flex-col items-end gap-1.5">
+                <span class="text-[11px]" style="color:var(--text-muted);">${fmtTime(b.timestamp)}</span>
+                ${b.conversationId ? `<a href="https://app.gohighlevel.com/conversations/${escapeHtml(b.conversationId)}" target="_blank" class="text-xs text-blue-400 hover:text-blue-300">Open in GHL →</a>` : ''}
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Escalations
+      const escalations = all.filter((n) => n.type === 'escalation');
+      document.getElementById('escalation-count').textContent = escalations.length;
+      const eRoot = document.getElementById('escalations-list');
+      if (escalations.length === 0) {
+        eRoot.innerHTML = '<div class="p-6 text-center text-sm" style="color:var(--text-muted);">No escalations yet.</div>';
+      } else {
+        eRoot.innerHTML = escalations.slice(0, 30).map((e) => `
+          <div class="p-4">
+            <div class="flex items-start justify-between gap-3 flex-wrap">
+              <div class="min-w-0 flex-1">
+                <div class="font-medium text-sm">${escapeHtml(e.customerName || 'Customer')} · <span class="pill pill-gray">${escapeHtml(e.channel || 'SMS')}</span></div>
+                <div class="text-xs mt-0.5" style="color:var(--text-secondary);">Reason: ${escapeHtml(e.reason || 'unspecified')}</div>
+                ${e.lastCustomerMessage ? `<div class="text-xs mt-1 italic" style="color:var(--text-muted);">"${escapeHtml(e.lastCustomerMessage)}"</div>` : ''}
+              </div>
+              <div class="flex flex-col items-end gap-1.5">
+                <span class="text-[11px]" style="color:var(--text-muted);">${fmtTime(e.timestamp)}</span>
+                ${e.conversationId ? `<a href="https://app.gohighlevel.com/conversations/${escapeHtml(e.conversationId)}" target="_blank" class="text-xs text-amber-400 hover:text-amber-300">Take over →</a>` : ''}
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+    } catch (e) {}
+  }
+
+  // ====== LEARNING LOOP ======
+  async function refreshSuggestions() {
+    try {
+      const data = await fetch('/api/learning/suggestions').then((r) => r.json());
+      const all = data.suggestions || [];
+      const pending = all.filter((s) => s.status === 'pending');
+      document.getElementById('suggestions-count').textContent = pending.length;
+      const root = document.getElementById('suggestions-list');
+      if (all.length === 0) {
+        root.innerHTML = '<div class="p-6 text-center text-sm" style="color:var(--text-muted);">No suggestions yet. Click "Run analysis now" to generate the first batch.</div>';
+        return;
+      }
+      const kindLabels = {
+        faq_addition: 'FAQ addition',
+        script_change: 'Script change',
+        pricing_observation: 'Pricing observation',
+        operational: 'Operational',
+      };
+      const kindColors = {
+        faq_addition: 'pill-blue',
+        script_change: 'pill-purple',
+        pricing_observation: 'pill-yellow',
+        operational: 'pill-cyan',
+      };
+      const statusColors = {
+        pending: 'pill-purple',
+        approved: 'pill-green',
+        rejected: 'pill-red',
+      };
+      // Sort: pending first, then approved, then rejected — within each, newest first
+      const order = { pending: 0, approved: 1, rejected: 2 };
+      const sorted = [...all].sort((a, b) => {
+        const so = (order[a.status] || 9) - (order[b.status] || 9);
+        if (so !== 0) return so;
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+      root.innerHTML = sorted.map((s) => {
+        const kindLabel = kindLabels[s.kind] || s.kind;
+        const kindClr = kindColors[s.kind] || 'pill-gray';
+        const statusClr = statusColors[s.status] || 'pill-gray';
+        const evidence = s.evidence || {};
+        const examples = Array.isArray(evidence.examples) ? evidence.examples : [];
+        const isPending = s.status === 'pending';
+        return `
+          <div class="p-4">
+            <div class="flex items-start justify-between gap-3 flex-wrap">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1.5">
+                  <span class="pill ${kindClr}">${escapeHtml(kindLabel)}</span>
+                  <span class="pill ${statusClr}">${escapeHtml(s.status)}</span>
+                </div>
+                <div class="font-medium text-sm">${escapeHtml(s.title)}</div>
+                ${s.detail ? `<div class="text-xs mt-1.5" style="color:var(--text-secondary);">${escapeHtml(s.detail)}</div>` : ''}
+                ${s.proposed_change ? `
+                  <div class="mt-2 p-2.5 rounded-lg text-xs font-mono" style="background:rgba(59,130,246,.06); border:1px solid rgba(59,130,246,.18); color:#cbd5e1;">
+                    ${escapeHtml(s.proposed_change)}
+                  </div>` : ''}
+                ${examples.length ? `
+                  <div class="mt-2 text-[11px]" style="color:var(--text-muted);">
+                    Evidence: ${evidence.count || examples.length} cases${examples.length ? ' · e.g., ' + examples.slice(0, 2).map((e) => '"' + escapeHtml(e) + '"').join(', ') : ''}
+                  </div>` : ''}
+              </div>
+              ${isPending ? `
+                <div class="flex items-center gap-1.5 flex-shrink-0">
+                  <button data-act="approve" data-id="${s.id}" class="px-2.5 py-1 text-xs font-medium rounded-md bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25">Approve</button>
+                  <button data-act="reject" data-id="${s.id}" class="px-2.5 py-1 text-xs font-medium rounded-md bg-red-500/15 text-red-300 hover:bg-red-500/25">Reject</button>
+                </div>
+              ` : `<div class="text-[11px]" style="color:var(--text-muted);">${fmtTime(s.reviewed_at)}</div>`}
+            </div>
+          </div>
+        `;
+      }).join('');
+      // Wire up approve/reject buttons
+      root.querySelectorAll('[data-act]').forEach((btn) => {
+        btn.addEventListener('click', async (e) => {
+          const id = e.currentTarget.dataset.id;
+          const act = e.currentTarget.dataset.act;
+          e.currentTarget.disabled = true;
+          e.currentTarget.textContent = '...';
+          try {
+            await fetch(`/api/learning/suggestions/${id}/${act}`, { method: 'POST' });
+            await refreshSuggestions();
+          } catch (e) {
+            console.error('action failed', e);
+          }
+        });
+      });
+    } catch (e) {
+      console.error('refreshSuggestions failed', e);
+    }
+  }
+
+  // Wire up "Run analysis now" button
+  document.getElementById('run-analysis-btn').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const status = document.getElementById('analysis-status');
+    btn.disabled = true;
+    btn.textContent = 'Analyzing…';
+    status.classList.remove('hidden');
+    status.textContent = 'Sending recent activity to Claude for review…';
+    try {
+      const res = await fetch('/api/learning/analyze', { method: 'POST' });
+      const data = await res.json();
+      if (data.error) {
+        status.innerHTML = `<span class="text-red-400">Failed: ${escapeHtml(data.error)}</span>`;
+      } else {
+        status.innerHTML = `<span class="text-emerald-400">✓ Generated ${data.generated} suggestion${data.generated === 1 ? '' : 's'} (${data.inserted} stored, ${data.tokensUsed || 0} tokens). Reviewed ${data.convosAnalyzed} conversations.</span>`;
+        await refreshSuggestions();
+      }
+    } catch (e) {
+      status.innerHTML = `<span class="text-red-400">Failed: ${escapeHtml(e.message)}</span>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Run analysis now';
+    }
+  });
+
+  // ====== INIT + AUTO-REFRESH ======
+  async function refreshAll() {
+    await Promise.all([refreshState(), refreshStats(), refreshConversations(), refreshNotifications()]);
+  }
+  refreshAll();
+  refreshSuggestions();
+  setInterval(refreshAll, REFRESH_MS);
+  // Suggestions don't change as often — refresh less aggressively
+  setInterval(refreshSuggestions, 30000);
+</script>
+
+</body>
+</html>

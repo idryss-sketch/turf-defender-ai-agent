@@ -1,0 +1,22 @@
+{
+  "name": "turf-defenders-sales-agent",
+  "version": "0.1.0",
+  "description": "AI sales agent for Turf Defenders (Tucson, AZ)",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "test:conversation": "node scripts/test-conversation.js",
+    "test:conversation:direct": "node scripts/test-conversation-direct.js",
+    "test:pricing": "node scripts/test-pricing.js",
+    "test:server": "node scripts/test-server.js",
+    "test:jobber": "node scripts/test-jobber.js",
+    "jobber:auth": "node scripts/jobber-auth.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "pg": "^8.11.3"
+  }
+}
