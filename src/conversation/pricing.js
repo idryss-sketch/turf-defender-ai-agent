@@ -14,7 +14,7 @@ export const PACKAGES = {
       'Vacuum up debris',
       'Deodorize and sanitize with hydrogen peroxide based formula',
       'Odor removal treatment',
-      'Add infill',
+     
     ],
     bestFor: 'Odor removal and regular maintenance',
   },
