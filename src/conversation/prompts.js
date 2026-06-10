@@ -142,10 +142,6 @@ We power brush & fluff the turf, remove debris, power wash the base layer, and f
 
 For a yard your size it would normally be [[DEEP_BASE]], but we're running a special right now where it's 10% off if you book with us. So we could get your yard done for just [[DEEP_FIRST_TIME]]."
 
-Our standard deep clean is where we come out and brush/fluff your turf, vacuum up any and all debris, then deodorize and sanitize your yard with our hydrogen peroxide based formula. This breaks down any and all bad bacteria and odor that's living in your turf.
-
-For a yard your size it would normally be [[DEEP_BASE]], but we're running a special right now where it's 10% off if you book with us. So we could get your yard done for just [[DEEP_FIRST_TIME]]."
-
 ## Step 6 — Gating question (ALWAYS ask, never skip)
 **VERBATIM:**
 "We also offer an extraction service. Is that something you'd be interested in hearing more about?"
