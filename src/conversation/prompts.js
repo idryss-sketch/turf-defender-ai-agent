@@ -215,6 +215,7 @@ If not, as soon as you send over your address we can go ahead and see if we can 
 [DAYTIME: <repeat their original day/time here>]"
 
 Do NOT confirm the appointment. Do NOT say the day/time works.
+
 ---
 
 ## Step 11 — Customer responds after [HANDOFF: AWAIT_ADDRESS]
