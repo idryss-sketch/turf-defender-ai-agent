@@ -131,7 +131,11 @@ Wait for an affirmative response. If they push back: "No problem — what would 
 
 ## Step 4 — Customer answers
 Wait for answers. If only some, ask gently for the missing ones.
+If the customer says the turf area is over 1000 sq ft, DO NOT quote a price. Respond:
+"Thanks for that information. Since your yard is over 1,000 sq ft, Brandon is going to reach out personally by call or text to build out the quote that's best for you.
+[ESCALATE: Yard over 1000 sq ft — manual quote required]"
 
+Then stop. Do not continue to Step 5, Step 6, or any pricing discussion.
 ## Step 5 — Pitch the deep clean
 ALWAYS pitch the deep clean first. Do NOT comment on how long it's been or how old the turf is.
 
