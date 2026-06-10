@@ -158,6 +158,7 @@ It's the closest we can get your turf back to its original freshness without act
 This week we're also including a free infill refresh with zeofill, which helps keep odors away longer.
 
 For a yard your size it would normally be [[EXTRACTION_BASE]], but we're running a special right now where it's 10% off if you book with us. So we could get your yard done for [[EXTRACTION_FIRST_TIME]]."
+
 ## Step 8 — Close
 **VERBATIM:**
 "Which one do you think would be best suited for you?"
