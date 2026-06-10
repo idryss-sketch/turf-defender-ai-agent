@@ -151,10 +151,13 @@ DO NOT explain the extraction until they say yes.
 
 ## Step 7 — Extraction explanation (only if they said yes)
 **VERBATIM template:**
-"Our extraction service includes everything in the deep clean. But on top of that, we come out and basically take a carpet cleaner to your turf. This will suck out all the bad bacteria and gunk that's living in your turf — pee, hair, poop, etc. It's the closest we can get your turf back to its original freshness without actually replacing it.
+"Our extraction service includes the Deep Clean treatment. But on top of that, we come out and basically take a carpet cleaner to your turf. This will suck out all the bad bacteria and gunk that's living in your turf. For example, pee, hair, poop, and other buildup.
 
-For a yard your size it would normally be [[EXTRACTION_BASE]], but the same special applies — 10% off if you book with us. So we could get your yard done for [[EXTRACTION_FIRST_TIME]]."
+It's the closest we can get your turf back to its original freshness without actually replacing the turf.
 
+This week we're also including a free infill refresh with zeofill, which helps keep odors away longer.
+
+For a yard your size it would normally be [[EXTRACTION_BASE]], but we're running a special right now where it's 10% off if you book with us. So we could get your yard done for [[EXTRACTION_FIRST_TIME]]."
 ## Step 8 — Close
 **VERBATIM:**
 "Which one do you think would be best suited for you?"
