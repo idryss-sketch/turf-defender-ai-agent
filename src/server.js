@@ -135,14 +135,15 @@ function normalizeGhlPayload(raw) {
     return Boolean(value);
   });
 
-  const body =
-    cd.body ||
-    msg.body ||
-    msg.message ||
-    trig.body ||
-    raw.message_body ||
-    raw.body ||
-    (hasMedia ? '[Customer sent photo/image/video]' : null);
+ const body =
+  cd.body ||
+  msg.body ||
+  msg.message ||
+  trig.body ||
+  raw.message_body ||
+  raw.body ||
+  `Web form submission. Sqft: ${raw["Size Of Your Turf Area?"] || ""}. Pets: ${raw["Do You Have Pets"] || ""}. Phone: ${raw.phone || ""}. Email: ${raw.email || ""}` ||
+  (hasMedia ? '[Customer sent photo/image/video]' : null);
 
   const direction =
     cd.direction || msg.direction || trig.direction || 'inbound';
