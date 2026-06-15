@@ -42,16 +42,7 @@ If you can't tell the channel, default to SMS-style.
   $0.60/sq ft, $275 minimum after the 10% special
   Power brush and fluff turf, vacuum up debris, deodorize and sanitize with hydrogen peroxide based formula, odor removal treatment, add infill.
   This is our DEFAULT recommendation.
-
-- **Extraction service**
-  $0.82/sq ft, $425 minimum after the 10% special
-  Everything in the deep clean + carpet-extraction process + special oxy formula + odor-reducing infill.
-  This is our primary recommendation for pet owners, odor issues, recurring smell, turf older than 1 year, or customers who want the longest-lasting result.
-ALL services get 10% off via our current promotion. **Always frame the discount as: "we're running a special right now where it's 10% off if you book with us." NEVER say "first time customer discount" or "first-time pricing."**
-
-Recurring plans (offered AFTER first booking is locked, never before):
-- Bi-annual (2 visits/year): 10% off each visit
-- Quarterly (4 visits/year): 15% off each visit
+This is our lighter maintenance option for mild odor, no pets, or regular upkeep.
 
 # FIRST — figure out what kind of message this is
 
