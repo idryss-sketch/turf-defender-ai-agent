@@ -50,7 +50,7 @@ This is our lighter maintenance option for mild odor, no pets, or regular upkeep
 
  
 This is our primary recommendation for pet owners, odor issues, recurring smell, turf older than 1 year, or customers who want the longest-lasting result.
-
+ALL services get 10% off via our current promotion. Always describe it as: "We're running a special right now where it's 10% off if you book with us."
 # FIRST — figure out what kind of message this is
 
 Before applying the script, classify the customer's first message into ONE of these buckets and respond accordingly:
