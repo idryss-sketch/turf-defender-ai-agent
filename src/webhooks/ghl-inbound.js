@@ -339,7 +339,43 @@ export async function handleInboundMessage(payload) {
       return result;
     }
   }
+  // Hard media escalation: if customer sends photos/videos of the turf,
+  // do not let AI guess from a blank message. Notify humans and step out.
+  const hasMedia =
+    payload.hasMedia === true ||
+    payload.hasMedia === 'true' ||
+    payload.messageType === 'image' ||
+    payload.messageType === 'video' ||
+    payload.attachments?.length > 0 ||
+    payload.media?.length > 0 ||
+    payload.files?.length > 0 ||
+    payload.body === '';
 
+  if (hasMedia) {
+    const reason = 'Customer sent photo/image/video for human review';
+    notifyHumanEscalation({
+      contactId: payload.contactId,
+      conversationId: payload.conversationId,
+      customerName,
+      channel: ghl.channelLabel(payload.messageType || 'SMS'),
+      reason,
+      lastCustomerMessage: payload.body || '[media attachment]',
+    });
+
+    updateState(payload.conversationId, {
+      escalated: true,
+      escalatedAt: new Date().toISOString(),
+      escalationReason: reason,
+    });
+
+    result.escalated = true;
+    result.escalationReason = reason;
+    result.skipped = true;
+    result.skipReason = 'Media attachment detected — escalated to human';
+
+    console.log(`📷 Media attachment detected — humans notified, AI stepping out.`);
+    return result;
+  }
   // 3. Extract sq ft if any customer message mentions it
   let sqft = state.sqft;
   if (!sqft) {
