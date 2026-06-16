@@ -14,28 +14,10 @@ import { getReply } from '../conversation/engine.js';
 import * as ghl from '../integrations/ghl.js';
 import * as jobber from '../integrations/jobber.js';
 import { quote, PACKAGES } from '../conversation/pricing.js';
-import { getState, updateState, extractSqft, buildCustomerContext, getConversationsByContact } from '../storage/conversations.js';
+import { getState, updateState, extractSqft, buildCustomerContext } from '../storage/conversations.js';
 import { notifyHumanEscalation, notifyBookingResult, notifyHandoff } from '../utils/notify.js';
 
 const KILL_SWITCH_PATH = new URL('../../data/.kill', import.meta.url);
-
-// In-memory dedup cache: prevents GHL's duplicate webhook fires from sending
-// the same reply twice. Key = conversationId + body hash, TTL = 45 seconds.
-const _dedupCache = new Map();
-function isDuplicate(conversationId, body) {
-  const key = `${conversationId}::${body}`;
-  const now = Date.now();
-  const last = _dedupCache.get(key);
-  if (last && now - last < 45_000) return true;
-  _dedupCache.set(key, now);
-  // Prune stale entries occasionally
-  if (_dedupCache.size > 500) {
-    for (const [k, t] of _dedupCache) {
-      if (now - t > 45_000) _dedupCache.delete(k);
-    }
-  }
-  return false;
-}
 
 function isKillSwitchActive() {
   return existsSync(KILL_SWITCH_PATH);
@@ -89,16 +71,6 @@ export async function handleInboundMessage(payload) {
     return result;
   }
 
-  // Safety gate 3: dedup — GHL sometimes fires the same webhook twice within
-  // seconds. If we've already processed this exact message for this conversation
-  // in the last 45s, skip it silently.
-  if (isDuplicate(payload.conversationId ?? payload.contactId, payload.body ?? '')) {
-    result.skipped = true;
-    result.skipReason = 'Duplicate webhook (same message within 45s) — skipped';
-    console.log(`🔁 ${result.skipReason}`);
-    return result;
-  }
-
   // Some GHL workflow trigger versions don't expose conversation.id as a variable,
   // so the workflow sends contact.id as a placeholder. Detect that and resolve
   // the real conversationId via GHL search so message history works correctly.
@@ -118,26 +90,13 @@ export async function handleInboundMessage(payload) {
   }
 
   // Safety gate 3: previously escalated → AI stays out, BUT with a time
-  // window. If the escalation is older than the stale threshold, we treat it
-  // as stale and let the AI re-engage.
-  //
-  // Two windows:
-  //   • 1 day  — booking-related escalations (human took over to close a deal,
-  //              rebook/reschedule handoffs). These are routine completions, not
-  //              problems — the customer should be able to reach the bot again
-  //              the next day.
-  //   • 7 days — everything else (price pushback, complaints, spam, etc.).
+  // window. If the escalation is older than ESCALATION_STALE_DAYS (default 7),
+  // we treat it as stale and let the AI re-engage. This prevents a customer
+  // who pushed back on price last week from being permanently silenced when
+  // they come back ready to buy. The AI gets a fresh shot.
   const state = getState(payload.conversationId);
   if (state.escalated) {
-    const reason = (state.escalationReason || '').toLowerCase();
-    const isBookingHandoff =
-      reason.includes('human took over') ||
-      reason.includes('rebook request') ||
-      reason.includes('reschedule request') ||
-      reason.includes('address provided');
-    const STALE_DAYS = isBookingHandoff
-      ? 1
-      : parseInt(process.env.ESCALATION_STALE_DAYS || '7', 10);
+    const STALE_DAYS = parseInt(process.env.ESCALATION_STALE_DAYS || '7', 10);
     const escalatedAt = state.escalatedAt || state.lastUpdated;
     const ageDays = escalatedAt
       ? (Date.now() - new Date(escalatedAt).getTime()) / (1000 * 60 * 60 * 24)
@@ -339,41 +298,7 @@ export async function handleInboundMessage(payload) {
       return result;
     }
   }
-  // Hard media escalation: if customer sends photos/videos of the turf,
-  // do not let AI guess from a blank message. Notify humans and step out.
-  const hasMedia =
-    payload.hasMedia === true ||
-    payload.hasMedia === 'true' ||
-    payload.messageType === 'image' ||
-    payload.messageType === 'video' ||
-    payload.attachments?.length > 0 ||
-    payload.media?.length > 0 ||
-    payload.files?.length > 0;
-  if (hasMedia) {
-    const reason = 'Customer sent photo/image/video for human review';
-    notifyHumanEscalation({
-      contactId: payload.contactId,
-      conversationId: payload.conversationId,
-      customerName,
-      channel: ghl.channelLabel(payload.messageType || 'SMS'),
-      reason,
-      lastCustomerMessage: payload.body || '[media attachment]',
-    });
 
-    updateState(payload.conversationId, {
-      escalated: true,
-      escalatedAt: new Date().toISOString(),
-      escalationReason: reason,
-    });
-
-    result.escalated = true;
-    result.escalationReason = reason;
-    result.skipped = true;
-    result.skipReason = 'Media attachment detected — escalated to human';
-
-    console.log(`📷 Media attachment detected — humans notified, AI stepping out.`);
-    return result;
-  }
   // 3. Extract sq ft if any customer message mentions it
   let sqft = state.sqft;
   if (!sqft) {
@@ -389,18 +314,34 @@ export async function handleInboundMessage(payload) {
       }
     }
   }
-  // For returning customers: if sqft still unknown, inherit from their most
-  // recent prior conversation that has it. This ensures price placeholders
-  // (like [[KHLOE_FIRST_TIME]]) resolve correctly in the rebook flow even
-  // when the customer starts a brand-new GHL conversation thread.
-  if (!sqft && payload.contactId) {
-    const priors = getConversationsByContact(payload.contactId, payload.conversationId);
-    const priorWithSqft = priors.find((p) => p.sqft);
-    if (priorWithSqft) {
-      sqft = priorWithSqft.sqft;
-      updateState(payload.conversationId, { sqft });
-      console.log(`📐 Inherited sq ft from prior conversation: ${sqft}`);
-    }
+
+  // 3b. Large job gate — if sqft >= 1000, skip AI entirely and hand off to humans.
+  // Dalis and David get an SMS notification. AI never quotes these jobs.
+  const LARGE_JOB_THRESHOLD = 1000;
+  if (sqft && sqft >= LARGE_JOB_THRESHOLD && !state.escalated) {
+    console.log(`📐 Large job detected (${sqft} sqft ≥ ${LARGE_JOB_THRESHOLD}) — handing off to humans, skipping AI quote`);
+    notifyHumanEscalation({
+      contactId: payload.contactId,
+      conversationId: payload.conversationId,
+      customerName,
+      channel: ghl.channelLabel(payload.messageType || 'SMS'),
+      reason: `Large job — ${sqft} sqft over ${LARGE_JOB_THRESHOLD} sqft threshold. Human closer needed.`,
+      lastCustomerMessage: payload.body,
+    });
+    updateState(payload.conversationId, {
+      escalated: true,
+      escalatedAt: new Date().toISOString(),
+      escalationReason: `Large job — ${sqft} sqft over ${LARGE_JOB_THRESHOLD} sqft threshold`,
+    });
+    // Send one warm message to the customer, then step back
+    await ghl.sendMessage({
+      conversationId: payload.conversationId,
+      contactId: payload.contactId,
+      messageType: payload.messageType || 'SMS',
+      body: `For a yard that size I want to make sure we get you the most accurate quote possible. Let me have the team reach out to you directly — what's the best number or email to reach you at?`,
+    });
+    result.skipReason = `Large job (${sqft} sqft) — humans notified, AI stepping out`;
+    return result;
   }
 
   // 4. Call AI
@@ -517,7 +458,6 @@ export async function handleInboundMessage(payload) {
       bookingPackage: booking.package,
       bookingPrice: price,
       bookingTimestamp: new Date().toISOString(),
-      handedOff: false,  // Reset so rebook flows re-trigger handoff SMS
     });
 
     // Booking mode resolver:
@@ -807,13 +747,13 @@ export async function handleInboundMessage(payload) {
 /**
  * Internal package ID → customer-facing label.
  * Used when building Jobber Request titles/notes (so the coordinator sees
- * "deep clean" rather than the internal id).
+ * "deep clean" rather than "khloe").
  */
 function customerFacingLabel(packageId) {
   const map = {
-    
-    deep: 'deep clean',
-    extraction: 'extraction service',
+    winnie: 'quick clean',
+    khloe: 'deep clean',
+    karl: 'extraction service',
   };
   return map[packageId] || PACKAGES[packageId]?.tagline || packageId;
 }
