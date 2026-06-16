@@ -348,8 +348,7 @@ export async function handleInboundMessage(payload) {
     payload.messageType === 'video' ||
     payload.attachments?.length > 0 ||
     payload.media?.length > 0 ||
-    payload.files?.length > 0 ||
-
+    payload.files?.length > 0;
   if (hasMedia) {
     const reason = 'Customer sent photo/image/video for human review';
     notifyHumanEscalation({
