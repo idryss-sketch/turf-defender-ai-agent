@@ -324,7 +324,7 @@ export async function handleInboundMessage(payload) {
       contactId: payload.contactId,
       conversationId: payload.conversationId,
       customerName,
-      channel: ghl.channelLabel(payload.messageType || 'SMS'),
+      channel: payload.messageType || 'SMS',
       reason: `Large job — ${sqft} sqft over ${LARGE_JOB_THRESHOLD} sqft threshold. Human closer needed.`,
       lastCustomerMessage: payload.body,
     });
@@ -380,7 +380,7 @@ export async function handleInboundMessage(payload) {
       contactId: payload.contactId,
       conversationId: payload.conversationId,
       customerName,
-      channel: ghl.channelLabel(payload.messageType || 'SMS'),
+      channel: payload.messageType || 'SMS',
       reason: escalation.reason,
       lastCustomerMessage: payload.body,
     });
@@ -439,7 +439,7 @@ export async function handleInboundMessage(payload) {
     result.booked = true;
     result.bookingPackage = booking.package;
 
-    const channel = ghl.channelLabel(payload.messageType || 'SMS');
+    const channel = payload.messageType || 'SMS';
     const customerLabel = customerFacingLabel(booking.package);
 
     // Calculate the price we just quoted (always first-time discount applied).
@@ -533,7 +533,7 @@ export async function handleInboundMessage(payload) {
   // questions later. Don't re-fire the handoff SMS on subsequent messages.
   if (address?.captured && !state.handedOff) {
     const cur = getState(payload.conversationId);
-    const channel = ghl.channelLabel(payload.messageType || 'SMS');
+    const channel = payload.messageType || 'SMS';
     const customerLabel = customerFacingLabel(cur.bookingPackage);
     notifyHandoff({
       contactId: payload.contactId,
@@ -607,7 +607,7 @@ export async function handleInboundMessage(payload) {
         contactId: payload.contactId,
         conversationId: payload.conversationId,
         customerName,
-        channel: ghl.channelLabel(payload.messageType || 'SMS'),
+        channel: payload.messageType || 'SMS',
         reason: 'AI generated meta-language (broke character) — auto-escalated',
         lastCustomerMessage: payload.body,
       });
@@ -709,7 +709,7 @@ export async function handleInboundMessage(payload) {
         // Only fire SMS once per handoff — guard against double-fires if the
         // AI accidentally re-emits [HANDOFF: CLOSE] in a follow-up message.
         if (!cur.handedOff) {
-          const channel = ghl.channelLabel(payload.messageType || 'SMS');
+          const channel = payload.messageType || 'SMS';
           const customerLabel = customerFacingLabel(cur.bookingPackage);
           notifyHandoff({
             contactId: payload.contactId,
