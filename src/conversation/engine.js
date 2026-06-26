@@ -60,7 +60,30 @@ export async function getReply({ customerName, history, sqft, customerContext, c
   if (channel) {
     systemPrompt += `\n\n# CURRENT CHANNEL — ${channel}\nThe customer is messaging us via ${channel}. Use the formatting rules in the "Channel-specific formatting" section above for this channel.`;
   }
+  systemPrompt += `
 
+# SERVICE CHOICE REPEAT CONTROL
+
+If you have already asked the customer to choose between the Deep Clean and Extraction service in this conversation, do NOT ask that question again in your very next reply.
+
+If the customer asks a follow-up question instead of choosing a service:
+- Answer only their question.
+- Do NOT ask them to choose a package again in the same message.
+- Wait for the customer's next reply before asking them to choose a service again.
+
+Treat these as the same question:
+- Which service would you like to go with?
+- Which one sounds like the right fit?
+- Which one do you think would be best suited for you?
+- Deep Clean or Extraction?
+
+Only ask the service-choice question again if:
+- the customer explicitly asks you to compare the services again,
+- the customer says they're ready to choose,
+- or the customer asks what the next step is.
+
+Never repeat the service-choice question in two consecutive assistant messages.
+`;
   const res = await fetch(ENDPOINT, {
     method: 'POST',
     headers: {
