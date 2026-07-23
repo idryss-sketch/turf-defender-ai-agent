@@ -58,7 +58,7 @@ That proof is the entire marketing angle. Don't hide it — lead with it.
 
 ## 3. Positioning Statement
 
-**For turf cleaning companies** (expanding to home services) **who are losing leads to slow follow-up**, the [YOUR BRAND] AI Sales Bot is **the only bot built and proven on a real turf cleaning business** that qualifies leads, quotes prices, and books jobs automatically — 24/7, in under 60 seconds.
+**For turf cleaning companies** (expanding to home services) **who are losing leads to slow follow-up**, the Pronto AI AI Sales Systems is **the only bot built and proven on a real turf cleaning business** that qualifies leads, quotes prices, and books jobs automatically — 24/7, in under 60 seconds.
 
 **Unlike generic AI tools**, ours was built in the field, not a boardroom. Every message, every escalation, every nudge was designed for exactly this type of business.
 
