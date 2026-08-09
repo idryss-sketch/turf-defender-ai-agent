@@ -35,6 +35,7 @@ import { hydrateCache as hydrateConversations, allConversations } from './storag
 import { hydrateCache as hydrateNotifications, getAllNotifications } from './utils/notify.js';
 import { runAnalysis } from './learning/analyzer.js';
 import { runStalledLeadNudges } from './nudges/stalled-leads.js';
+import { handleProntoReports } from './routes/pronto-reports.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
@@ -607,6 +608,10 @@ const server = createServer(async (req, res) => {
       timestamp: new Date().toISOString(),
     });
   }
+
+  // Pronto published-reports API — must sit before the auth gate so the
+  // client portal can read reports without dashboard credentials.
+  if (await handleProntoReports(req, res)) return;
 
   // ===================== Auth gate for dashboard + API =====================
   // Webhooks are intentionally exempt (GHL needs to POST without creds).
