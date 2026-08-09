@@ -1,66 +1,137 @@
-// Pronto AI · Published reports API
-const express = require('express');
-const { Pool } = require('pg');
+// Pronto AI · Published weekly reports API.
+//
+// Self-contained: creates its own table on first use, handles CORS for the
+// client dashboard (different origin), and sits BEFORE the Basic-auth gate —
+// the client portal must load reports without dashboard credentials.
+//
+//   GET  /api/reports?client=<id>   → { meta, reports, latestWeekEscalations }
+//   POST /api/reports               → upsert one report (x-admin-key header)
+//
+// Env required: ADMIN_KEY
 
-const router = express.Router();
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+import { getPool } from '../storage/db.js';
 
-// GET /api/reports?client=squeaky-clean-turf
-router.get('/api/reports', async (req, res) => {
-  const clientId = String(req.query.client || '').trim();
-  if (!clientId) return res.status(400).json({ error: 'client query param is required' });
+let tableReady = false;
 
-  try {
-    const { rows } = await pool.query(
-      `SELECT meta, report
-       FROM pronto_reports
-       WHERE client_id = $1 AND published = TRUE
-       ORDER BY period_end ASC
-       LIMIT 52`,
-      [clientId],
+async function ensureTable() {
+  if (tableReady) return;
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS pronto_reports (
+      id          SERIAL PRIMARY KEY,
+      client_id   TEXT NOT NULL,
+      period_end  DATE NOT NULL,
+      meta        JSONB,
+      report      JSONB NOT NULL,
+      published   BOOLEAN DEFAULT TRUE,
+      updated_at  TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (client_id, period_end)
     );
+  `);
+  tableReady = true;
+}
 
-    if (rows.length === 0) return res.status(404).json({ error: 'No published reports' });
+function cors(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-key');
+}
 
-    res.json({
-      meta: rows[rows.length - 1].meta ?? null,
-      reports: rows.map((row) => row.report),
-      latestWeekEscalations: [],
+function json(res, status, body) {
+  cors(res);
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(body));
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', (c) => chunks.push(c));
+    req.on('end', () => {
+      const raw = Buffer.concat(chunks).toString('utf8');
+      try { resolve(raw ? JSON.parse(raw) : {}); }
+      catch (e) { reject(new Error('Invalid JSON: ' + e.message)); }
     });
-  } catch (err) {
-    console.error('GET /api/reports failed:', err);
-    res.status(500).json({ error: 'Failed to load reports' });
-  }
-});
+    req.on('error', reject);
+  });
+}
 
-// POST /api/reports  headers: x-admin-key  body: { clientId, meta, report }
-router.post('/api/reports', express.json({ limit: '1mb' }), async (req, res) => {
-  if (req.headers['x-admin-key'] !== process.env.ADMIN_KEY) {
-    return res.status(401).json({ error: 'Admin only' });
+/** Returns true if this module handled the request. */
+export async function handleProntoReports(req, res) {
+  const url = new URL(req.url, 'http://localhost');
+  if (url.pathname !== '/api/reports') return false;
+
+  // Browser preflight for the POST with the x-admin-key header.
+  if (req.method === 'OPTIONS') {
+    cors(res);
+    res.writeHead(204);
+    res.end();
+    return true;
   }
 
-  const { clientId, meta, report } = req.body || {};
-  if (!clientId || !report || !report.end) {
-    return res.status(400).json({ error: 'clientId and report.end are required' });
+  if (req.method === 'GET') {
+    const clientId = String(url.searchParams.get('client') || '').trim();
+    if (!clientId) {
+      json(res, 400, { error: 'client query param is required' });
+      return true;
+    }
+    try {
+      await ensureTable();
+      const { rows } = await getPool().query(
+        `SELECT meta, report
+         FROM pronto_reports
+         WHERE client_id = $1 AND published = TRUE
+         ORDER BY period_end ASC
+         LIMIT 52`,
+        [clientId],
+      );
+      if (rows.length === 0) {
+        json(res, 404, { error: 'No published reports' });
+        return true;
+      }
+      json(res, 200, {
+        meta: rows[rows.length - 1].meta ?? null,
+        reports: rows.map((r) => r.report),
+        latestWeekEscalations: [],
+      });
+    } catch (e) {
+      console.error('GET /api/reports failed:', e);
+      json(res, 500, { error: 'Failed to load reports' });
+    }
+    return true;
   }
 
-  try {
-    const { rows } = await pool.query(
-      `INSERT INTO pronto_reports (client_id, period_end, meta, report, published, updated_at)
-       VALUES ($1, $2, $3, $4, TRUE, now())
-       ON CONFLICT (client_id, period_end) DO UPDATE
-         SET meta = EXCLUDED.meta,
-             report = EXCLUDED.report,
-             published = TRUE,
-             updated_at = now()
-       RETURNING period_end`,
-      [clientId, report.end, meta ?? null, report],
-    );
-    res.json({ ok: true, clientId, period_end: rows[0].period_end });
-  } catch (err) {
-    console.error('POST /api/reports failed:', err);
-    res.status(500).json({ error: 'Failed to publish report' });
+  if (req.method === 'POST') {
+    if (!process.env.ADMIN_KEY || req.headers['x-admin-key'] !== process.env.ADMIN_KEY.trim()) {
+      json(res, 401, { error: 'Admin only' });
+      return true;
+    }
+    try {
+      const { clientId, meta, report } = await readBody(req);
+      if (!clientId || !report || !report.end) {
+        json(res, 400, { error: 'clientId and report.end are required' });
+        return true;
+      }
+      await ensureTable();
+      const { rows } = await getPool().query(
+        `INSERT INTO pronto_reports (client_id, period_end, meta, report, published, updated_at)
+         VALUES ($1, $2, $3, $4, TRUE, NOW())
+         ON CONFLICT (client_id, period_end) DO UPDATE
+           SET meta = EXCLUDED.meta,
+               report = EXCLUDED.report,
+               published = TRUE,
+               updated_at = NOW()
+         RETURNING period_end`,
+        [clientId, report.end, meta ?? null, report],
+      );
+      console.log(`📊 Report published: ${clientId} · period ending ${rows[0].period_end}`);
+      json(res, 200, { ok: true, clientId, period_end: rows[0].period_end });
+    } catch (e) {
+      console.error('POST /api/reports failed:', e);
+      json(res, 500, { error: 'Failed to publish report' });
+    }
+    return true;
   }
-});
 
-module.exports = router;
+  json(res, 405, { error: 'Method not allowed' });
+  return true;
+}
